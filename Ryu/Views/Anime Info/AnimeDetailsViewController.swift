@@ -11,7 +11,7 @@ import SwiftSoup
 import GoogleCast
 import SafariServices
 
-class AnimeDetailViewController: UITableViewController {
+class AnimeDetailViewController: UITableViewController, SynopsisCellDelegate {
     
     var animeTitle: String?
     var imageUrl: String?
