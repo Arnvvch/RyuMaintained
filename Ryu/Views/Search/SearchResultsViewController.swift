@@ -207,6 +207,8 @@ class SearchResultsViewController: UIViewController {
         switch source {
         case .animepahe:
             return parseAnimePahe(html)
+        default:
+            return []
         }
     }
     

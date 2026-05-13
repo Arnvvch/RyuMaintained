@@ -184,11 +184,19 @@ class AnimeDetailViewController: UITableViewController {
         return title.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
+    func openInExternalPlayer(player: String, url: URL) {
+        // Placeholder for external player integration
+    }
+    
+    var isReverseSorted: Bool = false
+    
+    func showAlert(title: String, message: String) {
+        showAlert(withTitle: title, message: message)
+    }
+    
     func fetchAnimeID(title: String, completion: @escaping (Int) -> Void) {
-        // Placeholder for Anilist ID fetch
         completion(0)
     }
-}
 
 extension AnimeDetailViewController: SynopsisCellDelegate {
     func synopsisCellDidToggleExpansion(_ cell: SynopsisCell) {
