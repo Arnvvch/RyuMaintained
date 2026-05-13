@@ -12,6 +12,7 @@ class SourceMenu {
     
     static func showSourceSelector(from viewController: UIViewController, barButtonItem: UIBarButtonItem? = nil, sourceView: UIView? = nil, completion: @escaping () -> Void) {
         DispatchQueue.main.async {
+            // Only show AnimePahe for selection
             let sources: [(String, MediaSource, String)] = [
                 ("AnimePahe", .animepahe, "🇺🇸")
             ]
@@ -23,11 +24,6 @@ class SourceMenu {
                     UserDefaults.standard.set(source.rawValue, forKey: "selectedMediaSource")
                     delegate?.didSelectNewSource()
                     completion()
-                }
-                
-                if let image = UIImage(named: title) {
-                    let resizedImage = image.resized(to: CGSize(width: 35, height: 35))
-                    action.setValue(resizedImage.withRenderingMode(.alwaysOriginal), forKey: "image")
                 }
                 
                 alertController.addAction(action)
