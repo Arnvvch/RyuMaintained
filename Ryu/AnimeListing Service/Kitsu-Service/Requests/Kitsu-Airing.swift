@@ -16,11 +16,10 @@ class KitsuServiceAiringAnime {
         
         session.request(url)
             .validate()
-            .responseJSON { response in
+            .responseDecodable(of: [String: Any].self) { response in
                 switch response.result {
-                case .success(let value):
-                    if let json = value as? [String: Any],
-                       let data = json["data"] as? [[String: Any]] {
+                case .success(let json):
+                    if let data = json["data"] as? [[String: Any]] {
                         
                         let airingAnime: [Anime] = data.compactMap { item in
                             guard let id = item["id"] as? String,

@@ -70,11 +70,10 @@ class AnimeDetailService {
             let animeId = String(html[range])
             let apiUrl = "https://animepahe.pw/api?m=release&id=\(animeId)&sort=recent&page=1"
             
-            session.request(apiUrl).responseJSON { response in
+            session.request(apiUrl).responseDecodable(of: [String: Any].self) { response in
                 switch response.result {
                 case .success(let json):
-                    guard let dict = json as? [String: Any],
-                          let data = dict["data"] as? [[String: Any]] else {
+                    guard let data = json["data"] as? [[String: Any]] else {
                         completion(.failure(NSError(domain: "AnimePahe", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid episodes data"])))
                         return
                     }

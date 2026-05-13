@@ -148,11 +148,10 @@ class AnimeService {
         let parameters: [String: Any] = ["query": query]
 
         session.request("https://graphql.anilist.co", method: .post, parameters: parameters, encoding: JSONEncoding.default)
-            .responseJSON { response in
+            .responseDecodable(of: [String: Any].self) { response in
                 switch response.result {
-                case .success(let value):
-                    if let json = value as? [String: Any],
-                       let data = json["data"] as? [String: Any],
+                case .success(let json):
+                    if let data = json["data"] as? [String: Any],
                        let media = data["Media"] as? [String: Any],
                        let id = media["id"] as? Int {
                         completion(.success(id))

@@ -34,12 +34,11 @@ class AnilistServiceSeasonalAnime {
         
         session.request("https://graphql.anilist.co", method: .post, parameters: parameters, encoding: JSONEncoding.default)
             .validate()
-            .responseJSON { response in
+            .responseDecodable(of: [String: Any].self) { response in
                 DispatchQueue.main.async {
                     switch response.result {
-                    case .success(let value):
-                        if let json = value as? [String: Any],
-                           let data = json["data"] as? [String: Any],
+                    case .success(let json):
+                        if let data = json["data"] as? [String: Any],
                            let page = data["Page"] as? [String: Any],
                            let media = page["media"] as? [[String: Any]] {
                             
