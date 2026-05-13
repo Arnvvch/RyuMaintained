@@ -16,38 +16,44 @@ class KitsuServiceAiringAnime {
         
         session.request(url)
             .validate()
-            .responseDecodable(of: [String: Any].self) { response in
+            .responseData { response in
                 switch response.result {
-                case .success(let json):
-                    if let data = json["data"] as? [[String: Any]] {
-                        
-                        let airingAnime: [Anime] = data.compactMap { item in
-                            guard let id = item["id"] as? String,
-                                  let attributes = item["attributes"] as? [String: Any],
-                                  let titles = attributes["titles"] as? [String: String],
-                                  let posterImage = attributes["posterImage"] as? [String: Any],
-                                  let originalImageUrl = posterImage["original"] as? String else {
-                                return nil
+                case .success(let data):
+                    do {
+                        if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+                           let data = json["data"] as? [[String: Any]] {
+                            
+                            let airingAnime: [Anime] = data.compactMap { item in
+                                guard let id = item["id"] as? String,
+                                      let attributes = item["attributes"] as? [String: Any],
+                                      let titles = attributes["titles"] as? [String: String],
+                                      let posterImage = attributes["posterImage"] as? [String: Any],
+                                      let originalImageUrl = posterImage["original"] as? String else {
+                                    return nil
+                                }
+                                
+                                let title = titles["en"] ?? titles["en_jp"] ?? "Title Not Available"
+                                let episodes = attributes["episodeCount"] as? Int
+                                let description = attributes["synopsis"] as? String
+                                
+                                let anime = Anime(
+                                    id: Int(id) ?? 0,
+                                    title: Title(romaji: title, english: title, native: title),
+                                    coverImage: CoverImage(large: originalImageUrl),
+                                    episodes: episodes,
+                                    description: description,
+                                    airingAt: nil
+                                )
+                                return anime
                             }
                             
-                            let title = titles["en"] ?? titles["en_jp"] ?? "Title Not Available"
-                            let episodes = attributes["episodeCount"] as? Int
-                            let description = attributes["synopsis"] as? String
-                            
-                            let anime = Anime(
-                                id: Int(id) ?? 0,
-                                title: Title(romaji: title, english: title, native: title),
-                                coverImage: CoverImage(large: originalImageUrl),
-                                episodes: episodes,
-                                description: description,
-                                airingAt: nil
-                            )
-                            return anime
+                            completion(airingAnime)
+                        } else {
+                            print("Error parsing JSON or missing expected fields")
+                            completion(nil)
                         }
-                        
-                        completion(airingAnime)
-                    } else {
-                        print("Error parsing JSON or missing expected fields")
+                    } catch {
+                        print("Error parsing JSON: \(error.localizedDescription)")
                         completion(nil)
                     }
                     

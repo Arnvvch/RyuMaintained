@@ -70,27 +70,35 @@ class AnimeDetailService {
             let animeId = String(html[range])
             let apiUrl = "https://animepahe.pw/api?m=release&id=\(animeId)&sort=recent&page=1"
             
-            session.request(apiUrl).responseDecodable(of: [String: Any].self) { response in
+            session.request(apiUrl).responseData { response in
                 switch response.result {
-                case .success(let json):
-                    guard let data = json["data"] as? [[String: Any]] else {
-                        completion(.failure(NSError(domain: "AnimePahe", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid episodes data"])))
-                        return
-                    }
-                    
-                    let episodes = data.compactMap { item -> Episode? in
-                        guard let episodeNumber = item["episode"] as? Int,
-                              let session = item["session"] as? String else {
-                            return nil
+                case .success(let data):
+                    do {
+                        if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                            guard let data = json["data"] as? [[String: Any]] else {
+                                completion(.failure(NSError(domain: "AnimePahe", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid episodes data"])))
+                                return
+                            }
+                            
+                            let episodes = data.compactMap { item -> Episode? in
+                                guard let episodeNumber = item["episode"] as? Int,
+                                      let session = item["session"] as? String else {
+                                    return nil
+                                }
+                                
+                                let animeSession = href.components(separatedBy: "/").last ?? ""
+                                let episodeHref = "https://animepahe.pw/play/\(animeSession)/\(session)"
+                                
+                                return Episode(number: "\(episodeNumber)", href: episodeHref, downloadUrl: "")
+                            }
+                            
+                            completion(.success(episodes.sorted { Int($0.number) ?? 0 < Int($1.number) ?? 0 }))
+                        } else {
+                            completion(.failure(NSError(domain: "AnimePahe", code: -1, userInfo: [NSLocalizedDescriptionKey: "Could not parse JSON"])))
                         }
-                        
-                        let animeSession = href.components(separatedBy: "/").last ?? ""
-                        let episodeHref = "https://animepahe.pw/play/\(animeSession)/\(session)"
-                        
-                        return Episode(number: "\(episodeNumber)", href: episodeHref, downloadUrl: "")
+                    } catch {
+                        completion(.failure(error))
                     }
-                    
-                    completion(.success(episodes.sorted { Int($0.number) ?? 0 < Int($1.number) ?? 0 }))
                     
                 case .failure(let error):
                     completion(.failure(error))

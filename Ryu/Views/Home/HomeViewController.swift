@@ -897,6 +897,10 @@ struct Title {
     let native: String?
 }
 
+struct CoverImage {
+    let large: String
+}
+
 
 // MARK: - Layout & Sections
 
@@ -1042,6 +1046,5 @@ extension HomeViewController {
         return section
     }
 }
-
     let large: String
 }

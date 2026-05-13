@@ -148,15 +148,20 @@ class AnimeService {
         let parameters: [String: Any] = ["query": query]
 
         session.request("https://graphql.anilist.co", method: .post, parameters: parameters, encoding: JSONEncoding.default)
-            .responseDecodable(of: [String: Any].self) { response in
+            .responseData { response in
                 switch response.result {
-                case .success(let json):
-                    if let data = json["data"] as? [String: Any],
-                       let media = data["Media"] as? [String: Any],
-                       let id = media["id"] as? Int {
-                        completion(.success(id))
-                    } else {
-                        let error = NSError(domain: "", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
+                case .success(let data):
+                    do {
+                        if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+                           let data = json["data"] as? [String: Any],
+                           let media = data["Media"] as? [String: Any],
+                           let id = media["id"] as? Int {
+                            completion(.success(id))
+                        } else {
+                            let error = NSError(domain: "", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])
+                            completion(.failure(error))
+                        }
+                    } catch {
                         completion(.failure(error))
                     }
                 case .failure(let error):

@@ -16,35 +16,41 @@ class KitsuServiceSeasonalAnime {
         
         session.request(url)
             .validate()
-            .responseDecodable(of: [String: Any].self) { response in
+            .responseData { response in
                 switch response.result {
-                case .success(let json):
-                    if let data = json["data"] as? [[String: Any]] {
-                        
-                        let seasonalAnime: [Anime] = data.compactMap { item in
-                            guard let id = item["id"] as? String,
-                                  let attributes = item["attributes"] as? [String: Any],
-                                  let titles = attributes["titles"] as? [String: String],
-                                  let posterImage = attributes["posterImage"] as? [String: Any],
-                                  let originalImageUrl = posterImage["original"] as? String else {
-                                return nil
+                case .success(let data):
+                    do {
+                        if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+                           let data = json["data"] as? [[String: Any]] {
+                            
+                            let seasonalAnime: [Anime] = data.compactMap { item in
+                                guard let id = item["id"] as? String,
+                                      let attributes = item["attributes"] as? [String: Any],
+                                      let titles = attributes["titles"] as? [String: String],
+                                      let posterImage = attributes["posterImage"] as? [String: Any],
+                                      let originalImageUrl = posterImage["original"] as? String else {
+                                    return nil
+                                }
+                                
+                                let title = titles["en"] ?? titles["en_jp"] ?? "Title Not Available"
+                                let anime = Anime(
+                                    id: Int(id) ?? 0,
+                                    title: Title(romaji: title, english: title, native: title),
+                                    coverImage: CoverImage(large: originalImageUrl),
+                                    episodes: nil,
+                                    description: nil,
+                                    airingAt: nil
+                                )
+                                return anime
                             }
                             
-                            let title = titles["en"] ?? titles["en_jp"] ?? "Title Not Available"
-                            let anime = Anime(
-                                id: Int(id) ?? 0,
-                                title: Title(romaji: title, english: title, native: title),
-                                coverImage: CoverImage(large: originalImageUrl),
-                                episodes: nil,
-                                description: nil,
-                                airingAt: nil
-                            )
-                            return anime
+                            completion(seasonalAnime)
+                        } else {
+                            print("Error parsing JSON or missing expected fields")
+                            completion(nil)
                         }
-                        
-                        completion(seasonalAnime)
-                    } else {
-                        print("Error parsing JSON or missing expected fields")
+                    } catch {
+                        print("Error parsing JSON: \(error.localizedDescription)")
                         completion(nil)
                     }
                     
