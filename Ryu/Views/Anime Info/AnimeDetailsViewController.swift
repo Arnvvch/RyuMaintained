@@ -46,7 +46,7 @@ class AnimeDetailViewController: UITableViewController {
         title = animeTitle
         tableView.register(EpisodeCell.self, forCellReuseIdentifier: "episodeCell")
         tableView.register(SynopsisCell.self, forCellReuseIdentifier: "synopsisCell")
-        tableView.register(InfoCell.self, forCellReuseIdentifier: "infoCell")
+        tableView.register(AnimeHeaderCell.self, forCellReuseIdentifier: "headerCell")
         
         refreshControl = UIRefreshControl()
         refreshControl?.addTarget(self, action: #selector(refreshDetails), for: .valueChanged)
@@ -89,7 +89,7 @@ class AnimeDetailViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         switch section {
-        case 0: return 1 // Info
+        case 0: return 1 // Header
         case 1: return 1 // Synopsis
         case 2: return episodes.count // Episodes
         default: return 0
@@ -99,8 +99,8 @@ class AnimeDetailViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         switch indexPath.section {
         case 0:
-            let cell = tableView.dequeueReusableCell(withIdentifier: "infoCell", for: indexPath) as! InfoCell
-            cell.configure(aliases: aliases, airdate: airdate, stars: stars)
+            let cell = tableView.dequeueReusableCell(withIdentifier: "headerCell", for: indexPath) as! AnimeHeaderCell
+            cell.configure(title: animeTitle, imageUrl: imageUrl, aliases: aliases, isFavorite: false, airdate: airdate, stars: stars, href: href)
             return cell
         case 1:
             let cell = tableView.dequeueReusableCell(withIdentifier: "synopsisCell", for: indexPath) as! SynopsisCell
@@ -110,7 +110,7 @@ class AnimeDetailViewController: UITableViewController {
         case 2:
             let cell = tableView.dequeueReusableCell(withIdentifier: "episodeCell", for: indexPath) as! EpisodeCell
             let episode = episodes[indexPath.row]
-            cell.configure(number: episode.number)
+            cell.configure(episode: episode, delegate: self)
             return cell
         default:
             return UITableViewCell()
@@ -122,19 +122,24 @@ class AnimeDetailViewController: UITableViewController {
         if indexPath.section == 2 {
             let episode = episodes[indexPath.row]
             currentEpisodeIndex = indexPath.row
-            handleEpisodeSelection(episode: episode)
+            if let cell = tableView.cellForRow(at: indexPath) as? EpisodeCell {
+                episodeSelected(episode: episode, cell: cell)
+            }
         }
     }
     
-    private func handleEpisodeSelection(episode: Episode) {
+    func episodeSelected(episode: Episode, cell: EpisodeCell) {
         showLoadingBanner()
-        
+        handleEpisodeSelection(episode: episode, cell: cell)
+    }
+    
+    private func handleEpisodeSelection(episode: Episode, cell: EpisodeCell) {
         // AnimePahe is the only source
         fetchHTMLContent(from: episode.href) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let html):
-                    self?.handleAnimePaheSource(htmlString: html, cell: EpisodeCell(), fullURL: episode.href)
+                    self?.handleAnimePaheSource(htmlString: html, cell: cell, fullURL: episode.href)
                 case .failure(let error):
                     self?.hideLoadingBanner()
                     self?.showAlert(withTitle: "Error", message: error.localizedDescription)
@@ -169,6 +174,20 @@ class AnimeDetailViewController: UITableViewController {
             player.play()
         }
     }
+    
+    func downloadMedia(for episode: Episode) {
+        // Placeholder for download logic
+        showAlert(withTitle: "Download", message: "Download started for episode \(episode.number)")
+    }
+    
+    func cleanTitle(_ title: String) -> String {
+        return title.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    
+    func fetchAnimeID(title: String, completion: @escaping (Int) -> Void) {
+        // Placeholder for Anilist ID fetch
+        completion(0)
+    }
 }
 
 extension AnimeDetailViewController: SynopsisCellDelegate {
@@ -176,35 +195,4 @@ extension AnimeDetailViewController: SynopsisCellDelegate {
         isSynopsisExpanded.toggle()
         tableView.reloadSections(IndexSet(integer: 1), with: .automatic)
     }
-}
-
-class EpisodeCell: UITableViewCell {
-    func configure(number: String) {
-        textLabel?.text = "Episode \(number)"
-    }
-}
-
-class SynopsisCell: UITableViewCell {
-    weak var delegate: SynopsisCellDelegate?
-    func configure(synopsis: String, isExpanded: Bool) {
-        textLabel?.text = synopsis
-        textLabel?.numberOfLines = isExpanded ? 0 : 3
-    }
-}
-
-protocol SynopsisCellDelegate: AnyObject {
-    func synopsisCellDidToggleExpansion(_ cell: SynopsisCell)
-}
-
-class InfoCell: UITableViewCell {
-    func configure(aliases: String, airdate: String, stars: String) {
-        textLabel?.text = "\(aliases)\n\(airdate)\n\(stars)"
-        textLabel?.numberOfLines = 0
-    }
-}
-
-struct Episode {
-    let number: String
-    let href: String
-    let downloadUrl: String
 }
