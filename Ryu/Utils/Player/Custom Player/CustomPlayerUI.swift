@@ -711,7 +711,7 @@ class CustomVideoPlayerView: UIView, AVPictureInPictureControllerDelegate, GCKRe
             
             let episodeNumberString = self.cell.episodeNumber
             let episodeNumber = EpisodeNumberExtractor.extract(from: episodeNumberString)
-            let selectedMediaSource = UserDefaults.standard.string(forKey: "selectedMediaSource") ?? "AnimeWorld"
+            let selectedMediaSource = UserDefaults.standard.string(forKey: "selectedMediaSource") ?? "AnimePahe"
             
             let continueWatchingItem = ContinueWatchingItem(
                 animeTitle: self.videoTitle,

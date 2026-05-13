@@ -16,6 +16,8 @@ class HomeViewController: UITableViewController, SourceSelectionDelegate {
     @IBOutlet private weak var featuredCollectionView: UICollectionView!
     @IBOutlet private weak var continueWatchingCollectionView: UICollectionView!
     
+    private var mainCollectionView: UICollectionView!
+    
     @IBOutlet weak var dateLabel: UILabel!
     @IBOutlet weak var selectedSourceLabel: UILabel!
     @IBOutlet weak var selectSourceLable: UIBarButtonItem!
@@ -74,6 +76,18 @@ class HomeViewController: UITableViewController, SourceSelectionDelegate {
         setupActivityIndicators()
         fetchAnimeData()
         
+        navigationController?.navigationBar.prefersLargeTitles = true
+        navigationItem.largeTitleDisplayMode = .always
+        
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithTransparentBackground()
+        appearance.backgroundColor = .systemBackground.withAlphaComponent(0.8)
+        appearance.titleTextAttributes = [.foregroundColor: UIColor.label]
+        appearance.largeTitleTextAttributes = [.foregroundColor: UIColor.label, .font: UIFont.systemFont(ofSize: 34, weight: .black)]
+        
+        navigationController?.navigationBar.standardAppearance = appearance
+        navigationController?.navigationBar.scrollEdgeAppearance = appearance
+        
         let longPressGesture = UILongPressGestureRecognizer(target: self, action: #selector(handleLongPress(_:)))
         continueWatchingCollectionView.addGestureRecognizer(longPressGesture)
         
@@ -89,7 +103,7 @@ class HomeViewController: UITableViewController, SourceSelectionDelegate {
         loadContinueWatchingItems()
         setupSelectedSourceLabel()
         
-        let currentSelectedSource = UserDefaults.standard.string(forKey: "selectedMediaSource") ?? "AnimeWorld"
+        let currentSelectedSource = UserDefaults.standard.string(forKey: "selectedMediaSource") ?? "AnimePahe"
         if let displayedSource = selectedSourceLabel.text?.replacingOccurrences(of: "on ", with: "").replacingOccurrences(of: "%", with: "") {
             if displayedSource != currentSelectedSource {
                 fetchFeaturedAnime { [weak self] in
@@ -173,8 +187,29 @@ class HomeViewController: UITableViewController, SourceSelectionDelegate {
     }
     
     func setupCollectionViews() {
+        mainCollectionView = UICollectionView(frame: view.bounds, collectionViewLayout: createCompositionalLayout())
+        mainCollectionView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        mainCollectionView.backgroundColor = .systemBackground
+        mainCollectionView.dataSource = self
+        mainCollectionView.delegate = self
+        
+        mainCollectionView.register(ContinueWatchingCell.self, forCellWithReuseIdentifier: "ContinueWatchingCell")
+        mainCollectionView.register(UINib(nibName: "AiringAnimeCell", bundle: nil), forCellWithReuseIdentifier: "AiringAnimeCell")
+        mainCollectionView.register(UINib(nibName: "SlimmAnimeCell", bundle: nil), forCellWithReuseIdentifier: "SlimmAnimeCell")
+        mainCollectionView.register(SectionHeaderView.self, forSupplementaryViewOfKind: UICollectionView.elementKindSectionHeader, withReuseIdentifier: "SectionHeaderView")
+        
+        view.addSubview(mainCollectionView)
+        tableView.isHidden = true
+        
+        // Setup Refresh Control for mainCollectionView
+        let refresh = UIRefreshControl()
+        refresh.addTarget(self, action: #selector(refreshData), for: .valueChanged)
+        mainCollectionView.refreshControl = refresh
+        
+        // Old setup for background compatibility if needed, but we mostly use mainCollectionView now
         let collectionViews = [continueWatchingCollectionView, airingCollectionView, trendingCollectionView, seasonalCollectionView, featuredCollectionView]
         let cellIdentifiers = ["ContinueWatchingCell", "AiringAnimeCell", "SlimmAnimeCell", "SlimmAnimeCell", "SlimmAnimeCell"]
+...
         let cellClasses = [ContinueWatchingCell.self, UICollectionViewCell.self, UICollectionViewCell.self, UICollectionViewCell.self, UICollectionViewCell.self]
         
         for (index, collectionView) in collectionViews.enumerated() {
@@ -224,7 +259,7 @@ class HomeViewController: UITableViewController, SourceSelectionDelegate {
     }
     
     func setupSelectedSourceLabel() {
-        let selectedSource = UserDefaults.standard.string(forKey: "selectedMediaSource") ?? "AnimeWorld"
+        let selectedSource = UserDefaults.standard.string(forKey: "selectedMediaSource") ?? "AnimePahe"
         selectSourceLable.title = selectedSource
         
         if selectedSourceLabel.text?.replacingOccurrences(of: "on ", with: "").replacingOccurrences(of: "%", with: "") != selectedSource {
@@ -326,7 +361,7 @@ class HomeViewController: UITableViewController, SourceSelectionDelegate {
     }
     
     private func fetchFeaturedAnime(completion: @escaping () -> Void) {
-        let selectedSource = UserDefaults.standard.string(forKey: "selectedMediaSource") ?? "AnimeWorld"
+        let selectedSource = UserDefaults.standard.string(forKey: "selectedMediaSource") ?? "AnimePahe"
         let (sourceURL, parseStrategy) = getSourceInfo(for: selectedSource)
         
         DispatchQueue.main.async {
@@ -384,6 +419,7 @@ class HomeViewController: UITableViewController, SourceSelectionDelegate {
                         self.featuredErrorLabel.isHidden = false
                     }
                     self.featuredCollectionView.reloadData()
+                    self.mainCollectionView.reloadData()
                     completion()
                 }
             } catch {
@@ -400,6 +436,7 @@ class HomeViewController: UITableViewController, SourceSelectionDelegate {
     func refreshUI() {
         DispatchQueue.main.async {
             self.loadContinueWatchingItems()
+            self.mainCollectionView.reloadData()
             self.continueWatchingCollectionView.reloadData()
             self.airingCollectionView.reloadData()
             self.trendingCollectionView.reloadData()
@@ -425,6 +462,7 @@ class HomeViewController: UITableViewController, SourceSelectionDelegate {
     
     func refreshFeaturedUI() {
         DispatchQueue.main.async {
+            self.mainCollectionView.reloadData()
             self.featuredCollectionView.reloadData()
             self.setupSelectedSourceLabel()
         }
@@ -471,7 +509,25 @@ class HomeViewController: UITableViewController, SourceSelectionDelegate {
 }
 
 extension HomeViewController: UICollectionViewDataSource {
+    func numberOfSections(in collectionView: UICollectionView) -> Int {
+        if collectionView == mainCollectionView {
+            return HomeSection.allCases.count
+        }
+        return 1
+    }
+    
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        if collectionView == mainCollectionView {
+            guard let homeSection = HomeSection(rawValue: section) else { return 0 }
+            switch homeSection {
+            case .featured: return featuredAnime.count
+            case .continueWatching: return continueWatchingItems.count
+            case .airing: return airingAnime.count
+            case .trending: return trendingAnime.count
+            case .seasonal: return seasonalAnime.count
+            }
+        }
+        
         switch collectionView {
         case continueWatchingCollectionView:
             return continueWatchingItems.count
@@ -489,6 +545,38 @@ extension HomeViewController: UICollectionViewDataSource {
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        if collectionView == mainCollectionView {
+            guard let homeSection = HomeSection(rawValue: indexPath.section) else { return UICollectionViewCell() }
+            
+            switch homeSection {
+            case .featured:
+                let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "SlimmAnimeCell", for: indexPath) as! SlimmAnimeCell
+                let anime = featuredAnime[indexPath.item]
+                cell.configure(with: anime.title, imageUrl: URL(string: anime.imageURL))
+                return cell
+            case .continueWatching:
+                let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ContinueWatchingCell", for: indexPath) as! ContinueWatchingCell
+                let item = continueWatchingItems[indexPath.item]
+                cell.configure(with: item)
+                return cell
+            case .airing:
+                let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "AiringAnimeCell", for: indexPath) as! AiringAnimeCell
+                let anime = airingAnime[indexPath.item]
+                cell.configure(with: anime.title.romaji, imageUrl: URL(string: anime.coverImage.large), episodes: anime.episodes, description: anime.description, airingAt: anime.airingAt)
+                return cell
+            case .trending:
+                let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "SlimmAnimeCell", for: indexPath) as! SlimmAnimeCell
+                let anime = trendingAnime[indexPath.item]
+                cell.configure(with: anime.title.romaji, imageUrl: URL(string: anime.coverImage.large))
+                return cell
+            case .seasonal:
+                let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "SlimmAnimeCell", for: indexPath) as! SlimmAnimeCell
+                let anime = seasonalAnime[indexPath.item]
+                cell.configure(with: anime.title.romaji, imageUrl: URL(string: anime.coverImage.large))
+                return cell
+            }
+        }
+        
         switch collectionView {
         case continueWatchingCollectionView:
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "ContinueWatchingCell", for: indexPath) as! ContinueWatchingCell
@@ -510,6 +598,16 @@ extension HomeViewController: UICollectionViewDataSource {
         default:
             fatalError("Unexpected collection view")
         }
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {
+        if kind == UICollectionView.elementKindSectionHeader && collectionView == mainCollectionView {
+            let header = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: "SectionHeaderView", for: indexPath) as! SectionHeaderView
+            guard let section = HomeSection(rawValue: indexPath.section) else { return header }
+            header.configure(with: section.title)
+            return header
+        }
+        return UICollectionReusableView()
     }
     
     private func configureSlimmCell(_ cell: SlimmAnimeCell, at indexPath: IndexPath, for collectionView: UICollectionView) {
@@ -546,6 +644,28 @@ extension HomeViewController: UICollectionViewDataSource {
 
 extension HomeViewController: UICollectionViewDelegate {
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        if collectionView == mainCollectionView {
+            guard let homeSection = HomeSection(rawValue: indexPath.section) else { return }
+            switch homeSection {
+            case .featured:
+                let anime = featuredAnime[indexPath.item]
+                navigateToAnimeDetail(title: anime.title, imageUrl: anime.imageURL, href: anime.href)
+            case .continueWatching:
+                let item = continueWatchingItems[indexPath.item]
+                resumeWatching(item: item)
+            case .airing:
+                let anime = airingAnime[indexPath.item]
+                navigateToAnimeDetail(for: anime)
+            case .trending:
+                let anime = trendingAnime[indexPath.item]
+                navigateToAnimeDetail(for: anime)
+            case .seasonal:
+                let anime = seasonalAnime[indexPath.item]
+                navigateToAnimeDetail(for: anime)
+            }
+            return
+        }
+        
         switch collectionView {
         case continueWatchingCollectionView:
             let item = continueWatchingItems[indexPath.item]

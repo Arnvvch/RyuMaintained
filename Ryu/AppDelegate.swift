@@ -23,7 +23,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     
     private func setupDefaultUserPreferences() {
         let defaultValues: [String: Any] = [
-            "selectedMediaSource": "AnimeWorld",
+            "selectedMediaSource": "AnimePahe",
             "AnimeListingService": "AniList",
             "maxRetries": 10,
             "holdSpeedPlayer": 2,

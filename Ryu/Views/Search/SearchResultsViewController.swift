@@ -36,11 +36,6 @@ class SearchResultsViewController: UIViewController {
     var query: String = ""
     var selectedSource: String = ""
     
-    private lazy var sortButton: UIBarButtonItem = {
-        let button = UIBarButtonItem(image: UIImage(systemName: "arrow.up.arrow.down"), style: .plain, target: self, action: #selector(sortButtonTapped))
-        return button
-    }()
-    
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
@@ -68,15 +63,6 @@ class SearchResultsViewController: UIViewController {
         setupLoadingIndicator()
         setupErrorLabel()
         setupNoResultsLabel()
-        
-        if let selectedSource = UserDefaults.standard.selectedMediaSource {
-            switch selectedSource {
-            case .animeWorld, .gogoanime, .kuramanime, .animefire:
-                navigationItem.rightBarButtonItem = sortButton
-            default:
-                break
-            }
-        }
     }
     
     private func setupLoadingIndicator() {
@@ -120,87 +106,6 @@ class SearchResultsViewController: UIViewController {
         ])
     }
     
-    @objc private func sortButtonTapped() {
-        let alertController = UIAlertController(title: "Sort Anime", message: nil, preferredStyle: .actionSheet)
-        
-        let allAction = UIAlertAction(title: "All", style: .default) { [weak self] _ in
-            self?.filterResults(option: .all)
-        }
-        
-        switch UserDefaults.standard.selectedMediaSource {
-        case .gogoanime:
-            let dubAction = UIAlertAction(title: "Dub", style: .default) { [weak self] _ in
-                self?.filterResults(option: .dub)
-            }
-            let subAction = UIAlertAction(title: "Sub", style: .default) { [weak self] _ in
-                self?.filterResults(option: .sub)
-            }
-            alertController.addAction(dubAction)
-            alertController.addAction(subAction)
-        case .animeWorld:
-            let itaAction = UIAlertAction(title: "ITA", style: .default) { [weak self] _ in
-                self?.filterResults(option: .ita)
-            }
-            alertController.addAction(itaAction)
-        case .kuramanime:
-            let dubAction = UIAlertAction(title: "Dub", style: .default) { [weak self] _ in
-                self?.filterResults(option: .dub)
-            }
-            alertController.addAction(dubAction)
-        case .animefire:
-            let dubAction = UIAlertAction(title: "Dub", style: .default) { [weak self] _ in
-                self?.filterResults(option: .dub)
-            }
-            alertController.addAction(dubAction)
-        case .animeunity:
-            let itaAction = UIAlertAction(title: "ITA", style: .default) { [weak self] _ in
-                self?.filterResults(option: .ita)
-            }
-            alertController.addAction(itaAction)
-        default:
-            break
-        }
-        
-        alertController.addAction(allAction)
-        
-        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel, handler: nil)
-        alertController.addAction(cancelAction)
-        
-        if let popoverController = alertController.popoverPresentationController {
-            popoverController.barButtonItem = sortButton
-        }
-        
-        present(alertController, animated: true, completion: nil)
-    }
-    
-    private enum FilterOption {
-        case all, dub, sub, ita
-    }
-    
-    private func filterResults(option: FilterOption) {
-        switch option {
-        case .all:
-            filteredResults = searchResults
-        case .dub:
-            switch selectedSource {
-            case "GoGoAnime":
-                filteredResults = searchResults.filter { $0.title.lowercased().contains("(dub)") }
-            case "Kuramanime":
-                filteredResults = searchResults.filter { $0.title.contains("(Dub ID)") }
-            case "AnimeFire":
-                filteredResults = searchResults.filter { $0.title.contains("(Dublado)") }
-            default:
-                filteredResults = searchResults
-            }
-        case .sub:
-            filteredResults = searchResults.filter { !$0.title.lowercased().contains("(dub)") }
-        case .ita:
-            filteredResults = searchResults.filter { $0.title.contains("ITA") }
-        }
-        
-        tableView.reloadData()
-    }
-    
     @objc private func changeSourceButtonTapped() {
         SourceMenu.showSourceSelector(from: self, sourceView: changeSourceButton) { [weak self] in
             self?.refreshResults()
@@ -236,194 +141,54 @@ class SearchResultsViewController: UIViewController {
             return
         }
         
-        if selectedSource == "GoGoAnime" {
-            DispatchQueue.main.async {
-                self.fetchGoGoResults(urlParameters: urlParameters)
-            }
-        } else {
-            session.request(urlParameters.url, method: .get, parameters: urlParameters.parameters).responseString { [weak self] response in
-                guard let self = self else { return }
-                self.loadingIndicator.stopAnimating()
-                
-                switch response.result {
-                case .success(let value):
-                    let results = self.parseHTML(html: value, for: MediaSource(rawValue: selectedSource) ?? .animeWorld)
-                    self.searchResults = results
-                    self.filteredResults = results
-                    if results.isEmpty {
-                        self.showNoResults()
-                    } else {
-                        self.tableView.isHidden = false
-                        self.tableView.reloadData()
-                    }
-                case .failure(let error):
-                    if let httpStatusCode = response.response?.statusCode {
-                        switch httpStatusCode {
-                        case 400:
-                            self.showError("Bad request. Please check your input and try again.")
-                        case 403:
-                            self.showError("Access forbidden. You don't have permission to access this resource.")
-                        case 404:
-                            self.showError("Resource not found. Please try a different search.")
-                        case 429:
-                            self.showError("Too many requests. Please slow down and try again later.")
-                        case 500:
-                            self.showError("Internal server error. Please try again later.")
-                        case 502:
-                            self.showError("Bad gateway. The server is temporarily unable to handle the request.")
-                        case 503:
-                            self.showError("Service unavailable. Please try again later.")
-                        case 504:
-                            self.showError("Gateway timeout. The server took too long to respond.")
-                        default:
-                            self.showError("Unexpected error occurred. Please try again later.")
-                        }
-                    } else if let nsError = error as NSError?, nsError.domain == NSURLErrorDomain {
-                        switch nsError.code {
-                        case NSURLErrorNotConnectedToInternet:
-                            self.showError("No internet connection. Please check your network and try again.")
-                        case NSURLErrorTimedOut:
-                            self.showError("Request timed out. Please try again later.")
-                        default:
-                            self.showError("Network error occurred. Please try again later.")
-                        }
-                    } else {
-                        self.showError("Failed to fetch data. Please try again later.")
-                    }
+        session.request(urlParameters.url, method: .get, parameters: urlParameters.parameters).responseString { [weak self] response in
+            guard let self = self else { return }
+            self.loadingIndicator.stopAnimating()
+            
+            switch response.result {
+            case .success(let value):
+                let results = self.parseHTML(html: value, for: MediaSource(rawValue: selectedSource) ?? .animepahe)
+                self.searchResults = results
+                self.filteredResults = results
+                if results.isEmpty {
+                    self.showNoResults()
+                } else {
+                    self.tableView.isHidden = false
+                    self.tableView.reloadData()
                 }
+            case .failure(let error):
+                self.handleFailure(response: response, error: error)
             }
         }
     }
     
-    private func fetchGoGoResults(urlParameters: (url: String, parameters: Parameters)) {
-        let session = proxySession.createAlamofireProxySession()
-        let group = DispatchGroup()
-        var allResults: [(title: String, imageUrl: String, href: String)] = []
-        
-        group.enter()
-        session.request(urlParameters.url, method: .get, parameters: urlParameters.parameters).responseString { [weak self] response in
-            defer { group.leave() }
-            if let value = try? response.result.get(),
-               let document = try? SwiftSoup.parse(value),
-               let results = self?.parseGoGoAnime(document) {
-                allResults.append(contentsOf: results)
+    private func handleFailure(response: DataResponse<String, AFError>, error: AFError) {
+        if let httpStatusCode = response.response?.statusCode {
+            switch httpStatusCode {
+            case 400: self.showError("Bad request. Please check your input and try again.")
+            case 403: self.showError("Access forbidden. You don't have permission to access this resource.")
+            case 404: self.showError("Resource not found. Please try a different search.")
+            case 429: self.showError("Too many requests. Please slow down and try again later.")
+            case 500: self.showError("Internal server error. Please try again later.")
+            default: self.showError("Unexpected error occurred. Please try again later.")
             }
-        }
-        group.enter()
-        session.request(urlParameters.url + "&page=2", method: .get, parameters: urlParameters.parameters).responseString { [weak self] response in
-            defer { group.leave() }
-            if let value = try? response.result.get(),
-               let document = try? SwiftSoup.parse(value),
-               let results = self?.parseGoGoAnime(document) {
-                allResults.append(contentsOf: results)
+        } else if let nsError = error as NSError?, nsError.domain == NSURLErrorDomain {
+            switch nsError.code {
+            case NSURLErrorNotConnectedToInternet: self.showError("No internet connection. Please check your network and try again.")
+            case NSURLErrorTimedOut: self.showError("Request timed out. Please try again later.")
+            default: self.showError("Network error occurred. Please try again later.")
             }
-        }
-        group.enter()
-        session.request(urlParameters.url + "&page=3", method: .get, parameters: urlParameters.parameters).responseString { [weak self] response in
-            defer { group.leave() }
-            if let value = try? response.result.get(),
-               let document = try? SwiftSoup.parse(value),
-               let results = self?.parseGoGoAnime(document) {
-                allResults.append(contentsOf: results)
-            }
-        }
-        
-        group.notify(queue: .main) { [weak self] in
-            self?.loadingIndicator.stopAnimating()
-            self?.searchResults = allResults
-            self?.filteredResults = allResults
-            if allResults.isEmpty {
-                self?.showNoResults()
-            } else {
-                self?.tableView.isHidden = false
-                self?.tableView.reloadData()
-            }
+        } else {
+            self.showError("Failed to fetch data. Please try again later.")
         }
     }
     
     private func getUrlAndParameters(for source: String) -> (url: String, parameters: Parameters)? {
-        let url: String
-        var parameters: Parameters = [:]
-        
         switch source {
-        case "AnimeWorld":
-            url = "https://animeworld.so/search"
-            parameters["keyword"] = query
-        case "GoGoAnime":
-            url = "https://anitaku.bz/search.html"
-            parameters["keyword"] = query
-        case "AnimeHeaven":
-            url = "https://animeheaven.me/search.php"
-            parameters["s"] = query
-        case "AnimeFire":
-            let encodedQuery = query.lowercased().replacingOccurrences(of: " ", with: "-").addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? query
-            url = "https://animefire.plus/pesquisar/\(encodedQuery)"
-        case "Kuramanime":
-            url = "https://kuramanime.red/anime"
-            parameters["search"] = query
-        case "Anime3rb":
-            url = "https://anime3rb.com/search"
-            parameters["q"] = query
-        case "HiAnime":
-            let baseUrls = ["https://aniwatch-api-gp1w.onrender.com/anime/search"]
-            url = baseUrls.randomElement()!
-            parameters["q"] = query
-        case "Anilibria":
-            url = "https://api.anilibria.tv/v3/title/search"
-            parameters["search"] = query
-            parameters["filter"] = "id,names,posters"
-        case "AnimeSRBIJA":
-            url = "https://www.animesrbija.com/filter"
-            parameters["search"] = query
-        case "AniWorld":
-            url = "https://aniworld.to/animes"
-            parameters = [:]
-        case "TokyoInsider":
-            url = "https://www.tokyoinsider.com/anime/search"
-            parameters["k"] = query
-        case "AniVibe":
-            url = "https://anivibe.net/search.html"
-            parameters["keyword"] = query
-        case "AnimeUnity":
-            url = "https://www.animeunity.to/archivio"
-            parameters["title"] = query
-        case "AnimeFLV":
-            url = "https://www3.animeflv.net/browse"
-            parameters["q"] = query
-        case "AnimeBalkan":
-            url = "https://animebalkan.gg/"
-            parameters["s"] = query
-        case "AniBunker":
-            url = "https://www.anibunker.com/search"
-            parameters["q"] = query
+        case "AnimePahe":
+            return ("https://animepahe.pw/api", ["m": "search", "q": query])
         default:
             return nil
-        }
-        
-        return (url, parameters)
-    }
-
-    private func fuzzySearch(_ query: String, in results: [(title: String, imageUrl: String, href: String)]) -> [(title: String, imageUrl: String, href: String)] {
-        return results.filter { result in
-            let title = result.title.lowercased()
-            let searchQuery = query.lowercased()
-            
-            if title.contains(searchQuery) {
-                return true
-            }
-            
-            let titleWords = title.components(separatedBy: .whitespaces)
-            let queryWords = searchQuery.components(separatedBy: .whitespaces)
-            
-            for queryWord in queryWords {
-                for titleWord in titleWords {
-                    if titleWord.contains(queryWord) || queryWord.contains(titleWord) {
-                        return true
-                    }
-                }
-            }
-            
-            return false
         }
     }
     
@@ -440,75 +205,14 @@ class SearchResultsViewController: UIViewController {
     
     func parseHTML(html: String, for source: MediaSource) -> [(title: String, imageUrl: String, href: String)] {
         switch source {
-        case .hianime, .anilibria:
-            return parseDocument(nil, jsonString: html, for: source)
-        default:
-            do {
-                let document = try SwiftSoup.parse(html)
-                return parseDocument(document, jsonString: nil, for: source)
-            } catch {
-                print("Error parsing HTML: \(error.localizedDescription)")
-                return []
-            }
-        }
-    }
-    
-    private func parseDocument(_ document: Document?, jsonString: String?, for source: MediaSource) -> [(title: String, imageUrl: String, href: String)] {
-        switch source {
-        case .animeWorld:
-            guard let document = document else { return [] }
-            return parseAnimeWorld(document)
-        case .gogoanime:
-            guard let document = document else { return [] }
-            return parseGoGoAnime(document)
-        case .animeheaven:
-            guard let document = document else { return [] }
-            return parseAnimeHeaven(document)
-        case .animefire:
-            guard let document = document else { return [] }
-            return parseAnimeFire(document)
-        case .kuramanime:
-            guard let document = document else { return [] }
-            return parseKuramanime(document)
-        case .anime3rb:
-            guard let document = document else { return [] }
-            return parseAnime3rb(document)
-        case .hianime:
-            guard let jsonString = jsonString else { return [] }
-            return parseHiAnime(jsonString)
-        case .anilibria:
-            guard let jsonString = jsonString else { return [] }
-            return parseAnilibria(jsonString)
-        case .animesrbija:
-            guard let document = document else { return [] }
-            return parseAnimeSRBIJA(document)
-        case .aniworld:
-            guard let document = document else { return [] }
-            return parseAniWorld(document)
-        case .tokyoinsider:
-            guard let document = document else { return [] }
-            return parseTokyoInsider(document)
-        case .anivibe:
-            guard let document = document else { return [] }
-            return parseAniVibe(document)
-        case .animeunity:
-            guard let document = document else { return [] }
-            return parseAnimeUnity(document)
-        case .animeflv:
-            guard let document = document else { return [] }
-            return parseAnimeFLV(document)
-        case .animebalkan:
-            guard let document = document else { return [] }
-            return parseAnimeBalkan(document)
-        case .anibunker:
-            guard let document = document else { return [] }
-            return parseAniBunker(document)
+        case .animepahe:
+            return parseAnimePahe(html)
         }
     }
     
     private func navigateToAnimeDetail(title: String, imageUrl: String, href: String) {
         let detailVC = AnimeDetailViewController()
-        let selectedMedaiSource = UserDefaults.standard.string(forKey: "selectedMediaSource") ?? ""
+        let selectedMedaiSource = UserDefaults.standard.string(forKey: "selectedMediaSource") ?? "AnimePahe"
         
         detailVC.configure(title: title, imageUrl: imageUrl, href: href, source: selectedMedaiSource)
         navigationController?.pushViewController(detailVC, animated: true)
@@ -544,7 +248,7 @@ extension SearchResultsViewController: UIContextMenuInteractionDelegate {
         
         return UIContextMenuConfiguration(identifier: nil, previewProvider: {
             let detailVC = AnimeDetailViewController()
-            let selectedMedaiSource = UserDefaults.standard.string(forKey: "selectedMediaSource") ?? ""
+            let selectedMedaiSource = UserDefaults.standard.string(forKey: "selectedMediaSource") ?? "AnimePahe"
             detailVC.configure(title: result.title, imageUrl: result.imageUrl, href: result.href, source: selectedMedaiSource)
             return detailVC
         }, actionProvider: { _ in
@@ -552,51 +256,12 @@ extension SearchResultsViewController: UIContextMenuInteractionDelegate {
                 self?.navigateToAnimeDetail(title: result.title, imageUrl: result.imageUrl, href: result.href)
             }
             
-            let openInBrowserAction = UIAction(title: "Open in Browser", image: UIImage(systemName: "globe")) { [weak self] _ in
-                self?.openInBrowser(path: result.href)
-            }
-            
             let favoriteAction = UIAction(title: self.isFavorite(for: result) ? "Remove from the Library" : "Add to Library", image: UIImage(systemName: self.isFavorite(for: result) ? "bookmark.fill" : "bookmark")) { [weak self] _ in
                 self?.toggleFavorite(for: result)
             }
             
-            return UIMenu(title: "", children: [openAction, openInBrowserAction, favoriteAction])
+            return UIMenu(title: "", children: [openAction, favoriteAction])
         })
-    }
-    
-    private func openInBrowser(path: String) {
-        let selectedSource = UserDefaults.standard.string(forKey: "selectedMediaSource") ?? ""
-        let baseUrl: String
-        
-        switch selectedSource {
-        case "AnimeWorld":
-            baseUrl = "https://animeworld.so"
-        case "GoGoAnime":
-            baseUrl = "https://anitaku.bz"
-        case "AnimeHeaven":
-            baseUrl = "https://animeheaven.me/"
-        case "HiAnime":
-            baseUrl = "https://hianime.to/watch/"
-        default:
-            baseUrl = ""
-        }
-        
-        let fullUrlString = baseUrl + path
-        
-        guard let url = URL(string: fullUrlString) else {
-            print("Invalid URL string: \(fullUrlString)")
-            showAlert(withTitle: "Error", message: "The URL is invalid.")
-            return
-        }
-        
-        let safariViewController = SFSafariViewController(url: url)
-        present(safariViewController, animated: true, completion: nil)
-    }
-    
-    private func showAlert(withTitle title: String, message: String) {
-        let alertController = UIAlertController(title: title, message: message, preferredStyle: .alert)
-        alertController.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
-        present(alertController, animated: true, completion: nil)
     }
     
     private func isFavorite(for result: (title: String, imageUrl: String, href: String)) -> Bool {
@@ -623,7 +288,7 @@ extension SearchResultsViewController: UIContextMenuInteractionDelegate {
               let contentURL = URL(string: result.href) else {
                   return nil
               }
-        let selectedMediaSource = UserDefaults.standard.string(forKey: "selectedMediaSource") ?? "AnimeWorld"
+        let selectedMediaSource = UserDefaults.standard.string(forKey: "selectedMediaSource") ?? "AnimePahe"
         
         return FavoriteItem(title: result.title, imageURL: imageURL, contentURL: contentURL, source: selectedMediaSource)
     }

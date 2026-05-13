@@ -84,7 +84,7 @@ class SearchViewController: UIViewController {
     }
     
     func setupSelectedSourceLabel() {
-        let selectedSource = UserDefaults.standard.string(forKey: "selectedMediaSource") ?? "AnimeWorld"
+        let selectedSource = UserDefaults.standard.string(forKey: "selectedMediaSource") ?? "AnimePahe"
         selectSourceLable.title = selectedSource
     }
 }

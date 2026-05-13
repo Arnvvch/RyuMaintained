@@ -170,11 +170,9 @@ class AnimeHeaderCell: UITableViewCell {
         let selectedSource = UserDefaults.standard.string(forKey: "selectedMediaSource")
         
         switch selectedSource {
-        case "AnimeWorld", "Anime3rb":
-            starLabel.text = stars == "?" ? "N/A" : stars + "/10"
+        case "AnimePahe":
+            starLabel.text = stars == "?" ? "N/A" : stars
             airDateLabel.text = airdate
-        case "GoGoAnime", "AnimeFire":
-            starLabel.text = "N/A"
         default:
             starLabel.text = stars == "?" ? "N/A" : stars
             airDateLabel.text = airdate

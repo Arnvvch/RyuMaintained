@@ -4,3 +4,8 @@
 *.ipa
 *.dSYM.zip
 *.dSYM
+
+.claude
+CLAUDE.md
+DerivedData/
+.swiftpm/

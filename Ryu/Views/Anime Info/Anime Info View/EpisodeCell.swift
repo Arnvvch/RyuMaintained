@@ -38,7 +38,7 @@ class EpisodeCell: UITableViewCell {
     private var currentRemainingTime: TimeInterval = 0
     
     var episodeNumber: String = ""
-    let selectedMediaSource = UserDefaults.standard.string(forKey: "selectedMediaSource") ?? "AnimeWorld"
+    let selectedMediaSource = UserDefaults.standard.string(forKey: "selectedMediaSource") ?? "AnimePahe"
     
     weak var delegate: AnimeDetailViewController?
     var episode: Episode?
