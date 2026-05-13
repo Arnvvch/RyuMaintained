@@ -7,6 +7,25 @@
 
 import UIKit
 
+// Define HomeSection here or in HomeViewController to ensure visibility
+enum HomeSection: Int, CaseIterable {
+    case featured = 0
+    case continueWatching
+    case airing
+    case trending
+    case seasonal
+    
+    var title: String {
+        switch self {
+        case .featured: return "Featured"
+        case .continueWatching: return "Continue Watching"
+        case .airing: return "Airing"
+        case .trending: return "Trending"
+        case .seasonal: return "Seasonal"
+        }
+    }
+}
+
 extension HomeViewController {
     
     func createCompositionalLayout() -> UICollectionViewLayout {
@@ -97,23 +116,5 @@ extension HomeViewController {
         section.boundarySupplementaryItems = [header]
         
         return section
-    }
-}
-
-enum HomeSection: Int, CaseIterable {
-    case featured = 0
-    case continueWatching
-    case airing
-    case trending
-    case seasonal
-    
-    var title: String {
-        switch self {
-        case .featured: return "Featured"
-        case .continueWatching: return "Continue Watching"
-        case .airing: return "Airing"
-        case .trending: return "Trending"
-        case .seasonal: return "Seasonal"
-        }
     }
 }
