@@ -210,7 +210,13 @@ class HomeViewController: UITableViewController, SourceSelectionDelegate {
         let collectionViews = [continueWatchingCollectionView, airingCollectionView, trendingCollectionView, seasonalCollectionView, featuredCollectionView]
         let cellIdentifiers = ["ContinueWatchingCell", "AiringAnimeCell", "SlimmAnimeCell", "SlimmAnimeCell", "SlimmAnimeCell"]
 ...
-        let cellClasses: [UICollectionViewCell.Type] = [ContinueWatchingCell.self, UICollectionViewCell.self, UICollectionViewCell.self, UICollectionViewCell.self, UICollectionViewCell.self]
+        let cellClasses: [UICollectionViewCell.Type] = [
+            ContinueWatchingCell.self, 
+            UICollectionViewCell.self, 
+            UICollectionViewCell.self, 
+            UICollectionViewCell.self, 
+            UICollectionViewCell.self
+        ]
         
         for (index, collectionView) in collectionViews.enumerated() {
             collectionView?.delegate = self

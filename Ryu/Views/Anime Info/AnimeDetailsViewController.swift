@@ -36,6 +36,11 @@ class AnimeDetailViewController: UITableViewController, SynopsisCellDelegate {
         self.source = source
     }
     
+    func synopsisCellDidToggleExpansion(_ cell: SynopsisCell) {
+        isSynopsisExpanded.toggle()
+        tableView.reloadSections(IndexSet(integer: 1), with: .automatic)
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
@@ -193,14 +198,7 @@ class AnimeDetailViewController: UITableViewController, SynopsisCellDelegate {
     func showAlert(title: String, message: String) {
         showAlert(withTitle: title, message: message)
     }
-    
     func fetchAnimeID(title: String, completion: @escaping (Int) -> Void) {
         completion(0)
     }
-
-extension AnimeDetailViewController: SynopsisCellDelegate {
-    func synopsisCellDidToggleExpansion(_ cell: SynopsisCell) {
-        isSynopsisExpanded.toggle()
-        tableView.reloadSections(IndexSet(integer: 1), with: .automatic)
     }
-}
